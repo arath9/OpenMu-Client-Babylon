@@ -9,7 +9,9 @@ import { ModelObject } from '../render/modelObject';
 import { CharacterClassNumber, PlayerClass, getBaseClass } from '../../core/types';
 import { Entity, World, type Item } from '../../ecs/world';
 import { PlayerAction } from '@versions/shared/objects/enum';
-import { loadGLTF } from '../assets/modelLoader';
+import { disposeLoadedModel, loadGLTF } from '../assets/modelLoader';
+import { devQuery } from '../../core/devSeams';
+import { loadBodyOverride, resolveBodyOverride, resolveEquipmentOverride } from './visualOverrides';
 import { Ecs } from '../../ecs/current';
 import {
   BACK_BONE,
@@ -490,11 +492,7 @@ export class PlayerObject extends ModelObject {
           ),
       !armorPrefix
         ? Promise.resolve()
-        : this.loadPartAsync(
-            pathPrefix,
-            this.Armor,
-            `${armorPrefix}${fileSuffix}.glb`
-          ),
+        : this.loadDefaultArmor(pathPrefix, armorPrefix, fileSuffix, skinIndex),
       !pantPrefix
         ? Promise.resolve()
         : this.loadPartAsync(
@@ -519,6 +517,26 @@ export class PlayerObject extends ModelObject {
     ]);
   }
 
+  private async loadDefaultArmor(dir: string, prefix: string, suffix: string, playerClass: PlayerClass) {
+    const override = dir === 'Player/' && devQuery('visualEquipment') !== 'leather'
+      ? resolveBodyOverride(devQuery('visualProfile'), playerClass, prefix, devQuery('visualBody'))
+      : null;
+    // Preserve the original call shape when the experimental profile is off.
+    if (!override) return this.loadPartAsync(dir, this.Armor, `${prefix}${suffix}.glb`);
+    let sequence = this.Armor.loadSeq;
+    await loadBodyOverride(
+      override,
+      `${dir}${prefix}${suffix}.glb`,
+      path => {
+        const pending = this.loadPartAsync('', this.Armor, path);
+        sequence = this.Armor.loadSeq;
+        return pending;
+      },
+      (path, error) => console.warn(`Visual override ${path} failed; restoring Classic:`, error),
+      () => !this.disposed && this.Armor.loadSeq === sequence
+    );
+  }
+
   async loadPartAsync(
     dir: string,
     part: ModelObject,
@@ -533,8 +551,22 @@ export class PlayerObject extends ModelObject {
     // character comes through here (`sceneGate.isStaged`).
     this.PartsPending++;
     try {
-      const gltf = await loadGLTF(dir + modelPath, Ecs.world!);
-      if (seq !== part.loadSeq) return;
+      const path = dir + modelPath;
+      const override = part === this.Armor
+        ? resolveEquipmentOverride(devQuery('visualProfile'), devQuery('visualEquipment'), this.playerClass, path, devQuery('visualBody'))
+        : null;
+      const load = (file: string) => loadGLTF(file, Ecs.world!);
+      const gltf = await load(override ?? path).catch(error => {
+        if (!override) throw error;
+        console.warn(`Visual equipment override ${override} failed; restoring Classic:`, error);
+        if (seq !== part.loadSeq || this.disposed) return undefined;
+        return load(path);
+      });
+      if (!gltf) return;
+      if (seq !== part.loadSeq || this.disposed) {
+        disposeLoadedModel(gltf);
+        return;
+      }
       part.load(gltf);
 
       gltf.mesh.isPickable = this.IsInteractable;

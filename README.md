@@ -1,6 +1,5 @@
 <img width="1280" height="640" alt="Proyecto nuevo (2)" src="https://github.com/user-attachments/assets/94062c4b-5307-428a-ba95-3bcf214a05c6" />
 
-
 # Open Mu Client Babylon
 One Client to rule them all.
 
@@ -241,8 +240,172 @@ single-player offline demo.
                   models and sounds whose source differs; the rest is Season 6's).
      [ Gap ]: Outbound packets are still the Season 6 layouts, the window chrome is
               still Season 6 art, and 0.97d's World6 (Exile) has no map entry.
+
+## Visual Overrides - Custom Models & Assets
+
+El sistema de visual overrides permite cargar modelos GLB personalizados en desarrollo sin modificar el código del cliente. Se activa mediante query params en la URL.
+
+### Flags de Desarrollo
+
+| Query Param | Descripción | Valores Válidos |
+|-------------|-------------|-----------------|
+| `visualProfile` | Perfil de override visual (habilita el sistema) | `evolution`, `classic`, `null` (desactivado) |
+| `visualBody` | Ruta del GLB custom para el cuerpo/armadura | `Custom/<nombre>.glb` |
+| `visualEquipment` | Override específico por item equipable | `leather` (Leather Armor - group=8, num=5) |
+
+### Assets Disponibles
+
+Los assets custom se sirven desde `/public/game-assets/Custom/`:
+
+```
+/public/game-assets/Custom/
+├── Box.glb                    # 1.6 KB - Caja geométrica procedural (fixture de prueba)
+└── evolution_body.glb         # 3.1 KB - Cuerpo custom para Dark Knight (Dark Knight torso)
 ```
 
+**Nota:** Los archivos GLB deben cumplir:
+- Extensión `.glb` exclusivamente
+- Ruta relativa bajo `Custom/` en el path del asset
+- Regex validado: `/^Custom/[A-Za-z0-9_-]+.glb$/`
+
+### Ejemplos de Uso
+
+#### 1. Cargar cuerpo custom para Dark Knight
+
+```
+http://localhost:5173/online?visualProfile=evolution&visualBody=Custom/evolution_body.glb
+```
+
+#### 2. Aplicar override a Leather Armor (equipado)
+
+```
+http://localhost:5173/online?visualProfile=evolution&visualEquipment=leather
+```
+
+#### 3. Combinar cuerpo custom + equipment override
+
+```
+http://localhost:5173/online?visualProfile=evolution&visualBody=Custom/evolution_body.glb&visualEquipment=leather
+```
+
+#### 4. Modo offline (sin servidor de juego)
+
+```
+http://localhost:5173/offline?bare&visualProfile=evolution&visualBody=Custom/evolution_body.glb
+```
+
+El flag `bare` deshabilita el equipo Dragon de la demo para ver el cuerpo base limpio.
+
+### Añadir Nuevos GLBs Custom
+
+#### Paso 1: Colocar el archivo GLB
+
+Copiar tu archivo `.glb` a `/public/game-assets/Custom/`:
+
+```bash
+cp my_custom_armor.glb /path/to/OpenMu-Client-Babylon/public/game-assets/Custom/
+```
+
+#### Paso 2: Validar el archivo GLB
+
+El archivo debe cumplir con:
+1. **Rig compatible**: Debe compartir el rig existente de MU (huesos y joints en las posiciones correctas)
+2. **Materiales MU**: El pipeline aplica materiales MU estándar; texturas personalizadas pueden no renderizar correctamente
+3. **Peso por vértice**: Un solo peso por vértice es soportado actualmente
+
+#### Paso 3: Referenciar el archivo en la URL
+
+```
+http://localhost:5173/online?visualProfile=evolution&visualBody=Custom/my_custom_armor.glb
+```
+
+### Validación de Assets
+
+Los GLBs custom son validados mediante regex antes de ser cargados. El pattern es:
+
+```regex
+/^Custom/[A-Za-z0-9_-]+.glb$/
+```
+
+Esto significa que el filename debe:
+- Empezar con `Custom/` (ruta relativa)
+- Contener solo caracteres alfanuméricos, guiones y guiones bajos
+- Terminar en `.glb`
+
+Ejemplos válidos:
+- ✅ `Custom/my_armor.glb`
+- ✅ `Custom/dark_knight_v2.glb`
+- ✅ `Custom/armor123.glb`
+
+Ejemplos inválidos:
+- ❌ `my_armor.glb` (falta prefix)
+- ❌ `Assets/custom.glb` (ruta incorrecta)
+- ❌ `custom.gltf` (extensión no soportada)
+- ❌ `Custom/my armor.glb` (espacios no permitidos)
+
+### Troubleshooting
+
+#### Problema: "Modelo no carga / aparece error en consola"
+
+**Causas comunes:**
+1. Archivo GLB no existe en `/public/game-assets/Custom/`
+2. Ruta incorrecta en `visualBody` param
+3. Archivo tiene formato invalid o no es GLB
+4. Rig incompatible con el skeleton de MU
+
+**Solución:**
+- Verificar que el archivo existe: `ls public/game-assets/Custom/`
+- Comprobar la URL: los params deben ser válidos y el path correcto
+- Revisar consola del navegador (F12) para errores específicos
+- Intentar con un GLB conocido que funcione (`evolution_body.glb`)
+
+#### Problema: "Override no se activa / sigue apareciendo modelo Classic"
+
+**Causas comunes:**
+1. `visualProfile` no está presente o tiene valor incorrecto
+2. El perfil no es compatible con la clase de personaje actual
+3. El archivo GLB referenced no cumple las reglas de path
+
+**Solución:**
+- Asegurar que `visualProfile=evolution` esté presente en la URL
+- Verificar que el personaje sea Dark Knight (actualmente solo soporta esta clase)
+- Comprobar que `visualBody` tenga un path válido bajo `Custom/`
+
+#### Problema: "Modelo custom no tiene animaciones correctas"
+
+**Causa:** El GLB no comparte el rig exacto de MU o los clips de animación no están mapeados correctamente.
+
+**Solución:**
+- Exportar el GLB desde un modelo base de MU con el mismo skeleton
+- Verificar que los nombres de huesos coincidan exactamente
+- Asegurar que los clips de animación existan en el archivo GLB
+
+#### Problema: "Texturas no aparecen / modelos sin color"
+
+**Causa:** El pipeline actual aplica materiales MU estándar; texturas personalizadas pueden no ser cargadas.
+
+**Solución:**
+- Usar materiales básicos sin texturas externas para pruebas iniciales
+- Verificar que el GLB no dependa de texturas externas
+- Considerar usar colores sólidos en lugar de texturas complejas
+
+### Limitaciones Actuales
+
+1. **Clases soportadas**: Solo Dark Knight base (otras clases mantienen sus rutas originales)
+2. **Rig obligatorio**: El rig debe ser compatible con el skeleton existente de MU
+3. **Materiales limitados**: Pipeline aplica materiales MU; texturas personalizadas pueden no funcionar
+4. **Peso por vértice**: Un solo peso por vértice es soportado actualmente
+5. **Sin hot-reload**: Cambiar los params requiere recargar la página completa
+
+### Estado de Desarrollo
+
+- [x] Sistema de query params para activar overrides
+- [x] Validación de path GLB mediante regex
+- [x] Fallback automático a Classic si el custom falla
+- [ ] Hot reload al cambiar profile (requiere refresh)
+- [ ] Soporte multi-clase
+- [ ] Validación automática de rig y materiales
+- [ ] Soporte para glTF separado
 
 ## Thanks
 

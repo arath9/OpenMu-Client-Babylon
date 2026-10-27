@@ -7,6 +7,7 @@ import { loadItemModel } from './itemModel';
 import { isTwoHanded } from './weaponClass';
 import { itemVisualTier } from '../item_fx/itemVisualTier';
 import { itemEffectSignature } from '../item_fx/itemEffectMode';
+import type { ModelObject } from '../render/modelObject';
 import {
   forgetLiveItemIcons,
   ITEM_ICON_SCALE,
@@ -16,6 +17,8 @@ import {
   type LiveItemSpinSource,
 } from '../interface/item_icons';
 import { ItemsDatabase } from '@versions/shared/items/itemsDatabase';
+import { resolveItemVisualOverride, loadItemOverride } from './itemVisualOverrides';
+import { PlayerClass } from '../../core/types';
 
 /**
  * A bag item's icon drawn from its model the way `RenderItem3D` draws it (ZzzInventory.cpp:9707):
@@ -42,16 +45,27 @@ const HOVER_SPIN = 0.45;
 export function itemIconJob(scene: Scene, item: Item): IconShotJob | null {
   const def = ItemsDatabase.getItem(item.group, item.num);
   if (!def?.szModelName.endsWith('.glb')) return null;
+
+  // Declare all required variables explicitly
+  let pose: ReturnType<typeof itemIconPose>;
+  let width: number;
+  let height: number;
+  let unit: number;
+  let anchor: [number, number];
+  let scale: number;
+
   const key = `${item.group}_${item.num}`;
-  const pose = itemIconPose(item.group, item.num, item.lvl ?? 0, isTwoHanded(item));
-  const file = pose.model?.file ?? def.szModelFolder + def.szModelName;
-  const scale = pose.model?.scale ?? ITEM_ICON_SCALE[key] ?? ITEM_ICON_SCALE_DEFAULT;
-  const width = (def.X || 1) * SQUARE;
-  const height = (def.Y || 1) * SQUARE;
-  const unit = ITEM_ICON_UNITS_PER_PIXEL * M;
-  const { angle, offset, anchor } = pose;
+  pose = itemIconPose(item.group, item.num, item.lvl ?? 0, isTwoHanded(item));
+  let file = pose.model?.file ?? def.szModelFolder + def.szModelName;
+  scale = pose.model?.scale ?? ITEM_ICON_SCALE[key] ?? ITEM_ICON_SCALE_DEFAULT;
+  width = (def.X || 1) * SQUARE;
+  height = (def.Y || 1) * SQUARE;
+  unit = ITEM_ICON_UNITS_PER_PIXEL * M;
+  const { angle, offset } = pose;
+  anchor = [...pose.anchor];
+
   let turned: Quaternion | null = null;
-  let model: { updateMeshPasses(ms: number): void } | null = null;
+  let model: ModelObject | null = null;
 
   return {
     key: `${key}_${item.lvl ?? 0}${item.isExcellent ? '_e' : ''}${item.isAncient ? '_a' : ''}`,
@@ -64,24 +78,51 @@ export function itemIconJob(scene: Scene, item: Item): IconShotJob | null {
       top: 0,
     },
     build: async root => {
-      const object = await loadItemModel(scene, root, item.group, item.num, file, pose.bodyHeight * M);
-      // MU eye space (x right, y up, the item 200 units out) on the root's Babylon x, z, y: the
-      // anchor in the squares (RenderItem3D), then RenderObjectScreen's offset.
-      const node = object.node;
-      node.position.set(anchor[0] * width * unit + offset[0] * M, (offset[2] - DEPTH) * M, -anchor[1] * height * unit + offset[1] * M);
-      node.rotationQuaternion = angleMatrixQuaternion(angle[0] * DEG, angle[1] * DEG, angle[2] * DEG, new Quaternion());
-      turned = node.rotationQuaternion;
-      model = object;
-      node.scaling.setAll(scale);
-      // Drawn at its level and options, as worn (RenderPartObject, ZzzInventory.cpp:9699).
+      // Resolve visual override with player class context
+      const playerClass = PlayerClass.DarkKnight; // TODO: pass class context from UI if needed
+
+      const assetOverride = resolveItemVisualOverride(
+        item.group,
+        item.num,
+        playerClass,
+        file,
+        'Custom/evolution_body.glb'
+      );
+
+      // Load with override support and graceful fallback
+      await loadItemOverride(assetOverride, file, async overridePath => {
+        const obj = await loadItemModel(scene, root, item.group, item.num, overridePath, pose.bodyHeight * M);
+        const node = obj.node;
+        node.position.set(anchor[0] * width * unit + offset[0] * M, (offset[2] - DEPTH) * M, -anchor[1] * height * unit + offset[1] * M);
+        node.rotationQuaternion = angleMatrixQuaternion(angle[0] * DEG, angle[1] * DEG, angle[2] * DEG, new Quaternion());
+        turned = node.rotationQuaternion;
+        model = obj;
+        node.scaling.setAll(scale);
+      }, (overridePath, error) => {
+        console.warn(`Failed to load custom icon GLB ${overridePath}:`, error);
+      });
+
+      if (!model) {
+        // Fallback: load original item model if override failed
+        const object = await loadItemModel(scene, root, item.group, item.num, file, pose.bodyHeight * M);
+        const node = object.node;
+        node.position.set(anchor[0] * width * unit + offset[0] * M, (offset[2] - DEPTH) * M, -anchor[1] * height * unit + offset[1] * M);
+        node.rotationQuaternion = angleMatrixQuaternion(angle[0] * DEG, angle[1] * DEG, angle[2] * DEG, new Quaternion());
+        turned = node.rotationQuaternion;
+        model = object;
+        node.scaling.setAll(scale);
+      }
+
+      // Apply tier metadata to all meshes (regardless of override or fallback)
       const tier = itemVisualTier(item);
-      for (const mesh of object.getMeshes(true)) {
+      for (const mesh of model?.getMeshes(true) ?? []) {
         mesh.metadata ??= {};
         mesh.metadata.itemTier = tier.active ? tier : null;
         mesh.metadata.itemLvl = tier.level;
         mesh.metadata.isExcellent = tier.isExcellent;
       }
-      return object;
+
+      return model;
     },
     // The hovered item: its second angle replaced by the clock, the others kept.
     turn: ms => {

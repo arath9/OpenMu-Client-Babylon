@@ -1,5 +1,17 @@
 # actors
 
+## Development visual override
+
+`visualOverrides.ts` resolves the optional `visualProfile=evolution` development
+profile for the Dark Knight's default armor, with an explicit `visualBody=Custom/<name>.glb`.
+Without an asset selection it keeps Classic. `PlayerObject` loads the compatible
+GLB through the existing loader and falls back to Classic on failure. Production
+ignores the URL setting. See [custom_asset_pipeline.md](../../../docs/custom_asset_pipeline.md)
+for asset requirements, activation and the manual checks still needed.
+With `visualEquipment=leather`, default armor stays Classic and only the Dark
+Knight's Leather Armor model uses the override, with its existing item metadata
+and a legacy fallback. Other equipment and production keep their original paths.
+
 The model objects for players, monsters and NPCs, and the rules for what they wear: body parts,
 weapons on the hands and back, wings and capes, the guild flag, and which model a server object
 type loads. Its door is `index.ts`; older readers still import some modules directly (baselined).

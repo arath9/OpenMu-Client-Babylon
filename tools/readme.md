@@ -4,6 +4,9 @@ Scripts run by hand or by `package.json`, never by the game. Each file starts wi
 and how to run it.
 
 ## Asset conversion (original `Data/` -> what the browser loads)
+- `evolutionTorso.ts`: generates an original cyan box torso for the opt-in development
+  override, without reading legacy assets. `bun tools/evolutionTorso.ts`; contract test
+  in `evolutionTorso.test.ts`. Uses placeholder joint slots replaced by the player rig.
 - `bmdToGlb.ts`: models (`.bmd`) to `public/game-assets/**.glb`; `shared.ts` names the source tree
   (`MU_DATA`, `GLB_OUTPUT` for another version's tree: convert into a scratch folder and keep only
   what differs from Season 6's, `versions/v097d/readme.md`). A `LockPositions` action drops its last

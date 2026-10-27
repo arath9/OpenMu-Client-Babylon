@@ -7,12 +7,137 @@ vi.hoisted(() => {
 
 import { NullEngine } from '@babylonjs/core/Engines/nullEngine';
 import { Scene } from '@babylonjs/core/scene';
-import { TransformNode } from '../render/babylon/exports';
+import { Mesh, Skeleton, TransformNode } from '../render/babylon/exports';
 import { PlayerObject } from './playerObject';
+import { PlayerClass } from '../../core/types';
+import * as devSeams from '../../core/devSeams';
+import * as modelLoader from '../assets/modelLoader';
 
 const engine = new NullEngine();
 const scene = new Scene(engine);
 afterAll(() => engine.dispose());
+
+describe('the optional default armor profile', () => {
+  it('loads the equipment override and falls back with the same socket request', async () => {
+    const values: Record<string, string> = { visualProfile: 'evolution', visualEquipment: 'leather', visualBody: 'Custom/body.glb' };
+    const profile = vi.spyOn(devSeams, 'devQuery').mockImplementation(key => values[key] ?? null);
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const player = new PlayerObject(scene, new TransformNode('equipment', scene));
+    player.playerClass = PlayerClass.DarkKnight;
+    const mesh = new Mesh('equipmentPart', scene);
+    const skeleton = new Skeleton('equipmentRig', 'equipmentRig', scene);
+    const model = { mesh, skeleton, animationGroups: [] };
+    const loader = vi.spyOn(modelLoader, 'loadGLTF').mockRejectedValueOnce(new Error('missing')).mockResolvedValueOnce(model);
+    const apply = vi.spyOn(player.Armor, 'load').mockImplementation(() => {});
+    try {
+      await player.loadPartAsync('Player/', player.Armor, 'ArmorMale06.glb', 0, false);
+      expect(loader.mock.calls.map(call => call[0])).toEqual(['Custom/body.glb', 'Player/ArmorMale06.glb']);
+      expect(apply).toHaveBeenCalledWith(model);
+      expect(player.Armor.loadSeq).toBe(1);
+      expect(player.PartsPending).toBe(0);
+    } finally {
+      apply.mockRestore();
+      loader.mockRestore();
+      profile.mockRestore();
+      warning.mockRestore();
+      player.dispose();
+      mesh.dispose();
+      skeleton.dispose();
+    }
+  });
+
+  it('keeps the unequipped body Classic in equipment mode', async () => {
+    const values: Record<string, string> = { visualProfile: 'evolution', visualEquipment: 'leather', visualBody: 'Custom/body.glb' };
+    const profile = vi.spyOn(devSeams, 'devQuery').mockImplementation(key => values[key] ?? null);
+    const player = new PlayerObject(scene, new TransformNode('unequipped', scene));
+    player.playerClass = PlayerClass.DarkKnight;
+    const load = vi.spyOn(player, 'loadPartAsync').mockResolvedValue();
+    try {
+      await player.setDefaultArmor();
+      expect(load).toHaveBeenCalledWith('Player/', player.Armor, 'ArmorClass02.glb');
+    } finally {
+      profile.mockRestore();
+      player.dispose();
+    }
+  });
+  it('releases a part that arrives after the player was destroyed', async () => {
+    const player = new PlayerObject(scene, new TransformNode('late', scene));
+    const mesh = new Mesh('latePart', scene);
+    const skeleton = new Skeleton('lateRig', 'lateRig', scene);
+    const freeRig = vi.spyOn(skeleton, 'dispose');
+    let finish!: (model: modelLoader.LoadedModel) => void;
+    const loader = vi.spyOn(modelLoader, 'loadGLTF').mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    try {
+      const pending = player.loadPartAsync('Custom/', player.Armor, 'body.glb');
+      player.dispose();
+      finish({ mesh, skeleton, animationGroups: [] });
+      await pending;
+      expect(mesh.isDisposed()).toBe(true);
+      expect(freeRig).toHaveBeenCalled();
+      expect(player.PartsPending).toBe(0);
+    } finally {
+      loader.mockRestore();
+    }
+  });
+
+  it('keeps the original load arguments when disabled', async () => {
+    const profile = vi.spyOn(devSeams, 'devQuery').mockReturnValue(null);
+    const player = new PlayerObject(scene, new TransformNode('classic', scene));
+    player.playerClass = PlayerClass.DarkKnight;
+    const load = vi.spyOn(player, 'loadPartAsync').mockResolvedValue();
+    try {
+      await player.setDefaultArmor();
+      expect(load).toHaveBeenCalledWith('Player/', player.Armor, 'ArmorClass02.glb');
+    } finally {
+      profile.mockRestore();
+      player.dispose();
+    }
+  });
+
+  it('tries the selected GLB and restores Classic on failure', async () => {
+    const profile = vi.spyOn(devSeams, 'devQuery').mockImplementation(key => key === 'visualProfile' ? 'evolution' : 'Custom/evolution_body.glb');
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const player = new PlayerObject(scene, new TransformNode('custom', scene));
+    player.playerClass = PlayerClass.DarkKnight;
+    const load = vi.spyOn(player, 'loadPartAsync').mockRejectedValueOnce(new Error('missing')).mockResolvedValueOnce();
+    try {
+      await player.setDefaultArmor();
+      expect(load.mock.calls).toEqual([
+        ['', player.Armor, 'Custom/evolution_body.glb'],
+        ['', player.Armor, 'Player/ArmorClass02.glb'],
+      ]);
+      expect(warning).toHaveBeenCalledTimes(1);
+    } finally {
+      profile.mockRestore();
+      warning.mockRestore();
+      player.dispose();
+    }
+  });
+
+  it('does not restore default armor when an equipped part supersedes a failing override', async () => {
+    const profile = vi.spyOn(devSeams, 'devQuery').mockImplementation(key => key === 'visualProfile' ? 'evolution' : 'Custom/body.glb');
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const player = new PlayerObject(scene, new TransformNode('equipRace', scene));
+    player.playerClass = PlayerClass.DarkKnight;
+    let fail!: (error: Error) => void;
+    const loader = vi.spyOn(modelLoader, 'loadGLTF').mockImplementationOnce(() => new Promise((_resolve, reject) => { fail = reject; }));
+    try {
+      const pending = player.setDefaultArmor();
+      expect(player.Armor.loadSeq).toBeGreaterThan(0);
+      // A newer equipment load owns this socket, even if it is still pending.
+      player.Armor.loadSeq++;
+      fail(new Error('old override failed'));
+      await pending;
+      expect(loader).toHaveBeenCalledTimes(1);
+      expect(player.PartsPending).toBe(0);
+    } finally {
+      loader.mockRestore();
+      warning.mockRestore();
+      profile.mockRestore();
+      player.dispose();
+    }
+  });
+});
 
 describe('the wing slot', () => {
   it('draws no model for the Cape of Lord and the Cape of Fighter, only their cloth (ZzzCharacter.cpp:7004-7011)', async () => {
