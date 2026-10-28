@@ -5,37 +5,17 @@ const VEYRA_PARTS: Record<string, string> = {
   Helm: 'head', Armor: 'armor', Pant: 'pants', Glove: 'gloves', Boot: 'boots',
 };
 
+/** Shared selection for the body resolver and offline loadout. Null in production means Veyra. */
+export function usesVeyraDefaultBody(): boolean {
+  return devQuery('character') !== 'classic';
+}
+
 /** Modular default body; keep the parent rig, equipment and accessory sockets unchanged. */
 export function resolveCharacterVisualOverride(path: string): string | null {
-  // Check if this is a Player part path (HelmClass01, ArmorClass02, etc.)
   const match = /^Player\/(Helm|Armor|Pant|Glove|Boot)Class\d{2}\.glb$/.exec(path);
-  if (!match) {
-    return null;
-  }
-
-  console.log('[Veyra] resolveCharacterVisualOverride called for:', path, 'match:', match[1]);
-
-  // Production mode: always use Veyra for body parts (except Armor which is handled separately)
-  const part = match[1];
-  if (part !== 'Armor') {
-    console.log('[Veyra] Returning Veyra override for', part, ': Custom/veyra_', VEYRA_PARTS[part], '.glb');
-    return `Custom/veyra_${VEYRA_PARTS[part]}.glb`;
-  }
-
-  // Dev mode: respect ?character=veira|veyra for all parts including Armor
-  const character = devQuery('character');
-  if ((character === 'veira' || character === 'veyra') && part !== 'Armor') {
-    console.log('[Veyra] Returning Veyra override (dev) for', part, ': Custom/veyra_', VEYRA_PARTS[part], '.glb');
-    return `Custom/veyra_${VEYRA_PARTS[part]}.glb`;
-  }
-
-  // Dev mode: fallback to Classic when ?character=classic
-  if (character === 'classic') {
-    console.log('[Veyra] Returning null for Classic fallback');
-    return null; // Let original path be used for all parts
-  }
-
-  return null;
+  if (!match || !usesVeyraDefaultBody()) return null;
+  // ArmorClass is the torso socket, not equipped armour: it needs Veyra geometry too.
+  return `Custom/veyra_${VEYRA_PARTS[match[1]]}.glb`;
 }
 
 /**

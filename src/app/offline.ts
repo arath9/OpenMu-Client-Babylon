@@ -11,6 +11,7 @@ import { AppState, UIState } from '../controllers/interface/uiState';
 import { Session } from '../modules/session';
 import { Hero } from '../modules/hero';
 import { spawnPlayer } from '../modules/scope/net';
+import { usesVeyraDefaultBody } from '../controllers/actors/itemVisualOverrides';
 
 /**
  * `?offline&map=noria` / `?offline&map=3`: the world the offline scene boots
@@ -148,12 +149,15 @@ function applyOfflineVitals(): void {
 function setTestItems(): void {
   const DragonSetIndex = 1;
 
-  // Don't equip Dragon if Veyra character is requested via dev flag
-  let skipDragon = false;
-  try {
-    const character = new URLSearchParams(location.search).get('character');
-    if (character === 'veira' || character === 'veyra') skipDragon = true;
-  } catch {}
+  // Body equipment replaces (rather than layers over) the class meshes.
+  // Keep the same default as the resolver, including when no query is present.
+  const skipDragon = usesVeyraDefaultBody();
+  if (skipDragon) {
+    for (const slot of [InventoryConstants.HelmSlot, InventoryConstants.ArmorSlot,
+      InventoryConstants.PantsSlot, InventoryConstants.GlovesSlot, InventoryConstants.BootsSlot]) {
+      Hero.items[slot] = null;
+    }
+  }
 
   if (!skipDragon) {
     Hero.items[InventoryConstants.HelmSlot] = {
