@@ -148,40 +148,49 @@ function applyOfflineVitals(): void {
 function setTestItems(): void {
   const DragonSetIndex = 1;
 
-  Hero.items[InventoryConstants.HelmSlot] = {
-    num: DragonSetIndex,
-    group: ItemGroups.Helm,
-    lvl: 9,
-    isExcellent: false,
-  };
+  // Don't equip Dragon if Veyra character is requested via dev flag
+  let skipDragon = false;
+  try {
+    const character = new URLSearchParams(location.search).get('character');
+    if (character === 'veira' || character === 'veyra') skipDragon = true;
+  } catch {}
 
-  Hero.items[InventoryConstants.ArmorSlot] = {
-    num: DragonSetIndex,
-    group: ItemGroups.Armor,
-    lvl: 7,
-    isExcellent: false,
-  };
+  if (!skipDragon) {
+    Hero.items[InventoryConstants.HelmSlot] = {
+      num: DragonSetIndex,
+      group: ItemGroups.Helm,
+      lvl: 9,
+      isExcellent: false,
+    };
 
-  Hero.items[InventoryConstants.PantsSlot] = {
-    num: DragonSetIndex,
-    group: ItemGroups.Pants,
-    lvl: 9,
-    isExcellent: false,
-  };
+    Hero.items[InventoryConstants.ArmorSlot] = {
+      num: DragonSetIndex,
+      group: ItemGroups.Armor,
+      lvl: 7,
+      isExcellent: false,
+    };
 
-  Hero.items[InventoryConstants.GlovesSlot] = {
-    num: DragonSetIndex,
-    group: ItemGroups.Gloves,
-    lvl: 5,
-    isExcellent: false,
-  };
+    Hero.items[InventoryConstants.PantsSlot] = {
+      num: DragonSetIndex,
+      group: ItemGroups.Pants,
+      lvl: 9,
+      isExcellent: false,
+    };
 
-  Hero.items[InventoryConstants.BootsSlot] = {
-    num: DragonSetIndex,
-    group: ItemGroups.Boots,
-    lvl: 1,
-    isExcellent: false,
-  };
+    Hero.items[InventoryConstants.GlovesSlot] = {
+      num: DragonSetIndex,
+      group: ItemGroups.Gloves,
+      lvl: 5,
+      isExcellent: false,
+    };
+
+    Hero.items[InventoryConstants.BootsSlot] = {
+      num: DragonSetIndex,
+      group: ItemGroups.Boots,
+      lvl: 1,
+      isExcellent: false,
+    };
+  }
 
   const weapon = { Group: 3, Index: 9 };
 
