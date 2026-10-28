@@ -30,9 +30,16 @@ bun run dev
 
 | URL | Qué ves |
 |-----|---------|
-| `http://localhost:5173/offline` | **Veyra sin armor** (cuerpo base negro/obsidiana, torso/límbicos) |
-| `http://localhost:5173/offline?character=veira` | Veyra completa con armor turquesa |
-| `http://localhost:5173/offline?character=classic` | Personaje MU Classic (fallback) |
+| `http://localhost:5173/offline` | **Veyra completa** (todas las 5 partes) - personaje original por defecto |
+| `http://localhost:5173/offline?character=classic` | Personaje MU Classic completo para comparar |
+
+---
+
+### 📊 ¿Qué cambió con la corrección GPT?
+
+- **Hook `usesVeyraDefaultBody()`**: devuelve `true` por defecto, solo `false` con `?character=classic`
+- **ArmorClass incluido**: el torso (socket corporal) ahora usa Veyra geometry también
+- **Dragon no bloquea**: offline ya no equipa Dragon sobre Veyra automáticamente
 | `http://localhost:5173/offline?bare` | Veyra sin Dragon Armor, solo cuerpo base |
 
 ### Opción B: Modo con servidor OpenMU
