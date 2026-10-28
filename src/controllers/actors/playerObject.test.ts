@@ -17,6 +17,34 @@ const engine = new NullEngine();
 const scene = new Scene(engine);
 afterAll(() => engine.dispose());
 
+describe('Veyra default parts', () => {
+  it('loads the modular Veyra armor and restores Classic if it is unavailable', async () => {
+    const profile = vi.spyOn(devSeams, 'devQuery').mockImplementation(key => key === 'character' ? 'veira' : null);
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const player = new PlayerObject(scene, new TransformNode('veyra', scene));
+    const mesh = new Mesh('veyraPart', scene);
+    const skeleton = new Skeleton('veyraRig', 'veyraRig', scene);
+    const model = { mesh, skeleton, animationGroups: [] };
+    const loader = vi.spyOn(modelLoader, 'loadGLTF').mockRejectedValueOnce(new Error('missing')).mockResolvedValueOnce(model);
+    const apply = vi.spyOn(player.Armor, 'load').mockImplementation(() => {});
+    try {
+      await player.setDefaultArmor();
+      expect(loader.mock.calls.map(call => call[0])).toEqual(['Custom/veyra_armor.glb', 'Player/ArmorClass02.glb']);
+      expect(apply).toHaveBeenCalledWith(model);
+      expect(player.Armor.LinkParent).toBe(true);
+      expect(player.PartsPending).toBe(0);
+    } finally {
+      apply.mockRestore();
+      loader.mockRestore();
+      warning.mockRestore();
+      profile.mockRestore();
+      player.dispose();
+      mesh.dispose();
+      skeleton.dispose();
+    }
+  });
+});
+
 describe('the optional default armor profile', () => {
   it('loads the equipment override and falls back with the same socket request', async () => {
     const values: Record<string, string> = { visualProfile: 'evolution', visualEquipment: 'leather', visualBody: 'Custom/body.glb' };

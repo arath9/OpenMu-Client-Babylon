@@ -1,5 +1,14 @@
 # actors
 
+## Veyra development character
+
+`?character=veira` (also `veyra`) selects five original modular default body parts
+through `itemVisualOverrides.ts`. `PlayerObject` retains the canonical 61-slot rig
+and all 284 actions; equipment and accessories keep their normal models. Failed
+part loads restore Classic with the existing load-sequence guards. Production
+ignores this development selector. Source, regeneration, contract and validation
+results: [Veyra base character](../../../art/veyra/readme.md).
+
 ## Development visual override
 
 `visualOverrides.ts` resolves the optional `visualProfile=evolution` development

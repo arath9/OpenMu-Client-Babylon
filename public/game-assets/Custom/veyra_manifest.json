@@ -1,0 +1,68 @@
+{
+  "name": "Veyra, Custodia del Umbral",
+  "profile": "MU-legacy-local-284",
+  "skinSlots": 61,
+  "referenceSHA256": "34bf609f29b3587fb51140e83a5ed43bee3c9dfa2b3d7ad35d26a3be58c844a5",
+  "bindAction": "player_action_0",
+  "bindTimeSeconds": 0,
+  "coordinates": "Unmodified canonical MU GLB coordinates; runtime applies its own base",
+  "skin": "Rigid bone-local vertices; identity inverse binds",
+  "blenderVersion": "4.2.3 LTS",
+  "sockets": {
+    "Weapon1": {
+      "muIndex": 33,
+      "skinSlot": 34
+    },
+    "Weapon2": {
+      "muIndex": 42,
+      "skinSlot": 43
+    },
+    "Wings": {
+      "muIndex": 47,
+      "skinSlot": 48
+    }
+  },
+  "license": {
+    "geometry": "Original procedural Veyra geometry",
+    "referenceClips": "Inherited local game reference; redistribution rights must be checked separately"
+  },
+  "productionApproved": false,
+  "outputs": [
+    {
+      "file": "veyra_body.glb",
+      "sha256": "20ab7ddbeeeea1b72b422e0312bc1b167051876c33b1b428c702825e66298e73",
+      "triangles": 1184,
+      "bindRoundTripMaxError": 2.520290356216259e-07
+    },
+    {
+      "file": "veyra_head.glb",
+      "sha256": "6a9052356d3ea959d3a8422252d6ae0e93d014bdb6e5b756741be5b5f1099d42",
+      "triangles": 160,
+      "bindRoundTripMaxError": 1.2013790476182584e-07
+    },
+    {
+      "file": "veyra_armor.glb",
+      "sha256": "a008a8b42ea4627bf059285a12f2f2cabee95ea954a6cd65668bd5150f6867fd",
+      "triangles": 384,
+      "bindRoundTripMaxError": 2.425733297482089e-07
+    },
+    {
+      "file": "veyra_pants.glb",
+      "sha256": "d8a87b66e02c451200fe0dfded21668c7e218d0211c682f53ca8cbbd6edc4642",
+      "triangles": 128,
+      "bindRoundTripMaxError": 1.224835802604836e-07
+    },
+    {
+      "file": "veyra_gloves.glb",
+      "sha256": "0d5bf3ef6494eb4e1d44329de47ee6dc0f8968cf54de729f4983015f39bc1b09",
+      "triangles": 256,
+      "bindRoundTripMaxError": 2.520290356216259e-07
+    },
+    {
+      "file": "veyra_boots.glb",
+      "sha256": "094c426bbf83fb87d99282a6dc29cd3896b40da8a653072979aabc4ce75ab657",
+      "triangles": 256,
+      "bindRoundTripMaxError": 6.895718880643936e-08
+    }
+  ]
+}

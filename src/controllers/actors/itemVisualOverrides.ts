@@ -1,6 +1,18 @@
 import { PlayerClass } from '../../core/types';
 import { devQuery } from '../../core/devSeams';
 
+const VEYRA_PARTS: Record<string, string> = {
+  Helm: 'head', Armor: 'armor', Pant: 'pants', Glove: 'gloves', Boot: 'boots',
+};
+
+/** Modular default body; keep the parent rig, equipment and accessory sockets unchanged. */
+export function resolveCharacterVisualOverride(path: string): string | null {
+  const character = devQuery('character');
+  if (character !== 'veira' && character !== 'veyra') return null;
+  const match = /^Player\/(Helm|Armor|Pant|Glove|Boot)Class\d{2}\.glb$/.exec(path);
+  return match ? `Custom/veyra_${VEYRA_PARTS[match[1]]}.glb` : null;
+}
+
 /**
  * Resolve a custom GLB for an item icon based on profile/equipment/body settings.
  * v1: only Leather Armor (group 8, num 5) with the "evolution" profile and "leather" equipment.

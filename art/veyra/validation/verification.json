@@ -1,0 +1,32 @@
+{
+  "blender": "4.2.3 LTS; generator and Windows launcher executed successfully",
+  "scopedTests": {
+    "command": "bun run test src/tools/validateMUCompatibleGLB.test.ts src/controllers/actors/veyra.test.ts src/controllers/actors/veyraRuntime.test.ts src/controllers/actors/itemVisualOverrides.test.ts src/controllers/actors/visualOverrides.test.ts",
+    "passed": 48,
+    "failed": 0
+  },
+  "fallbackIntegration": {
+    "command": "bun run test src/controllers/actors/playerObject.test.ts -t Veyra",
+    "passed": 1,
+    "failed": 0
+  },
+  "fullSuite": {
+    "numTotalTests": 5038,
+    "numPassedTests": 4711,
+    "numFailedTests": 327
+  },
+  "fullSuiteFailureExamples": [
+    "gameVersion.features undefined in existing wing test",
+    "versionPackets undefined in application/module suites"
+  ],
+  "typescript": {
+    "repositoryErrors": 44,
+    "changedFileErrors": 0
+  },
+  "lintNewFiles": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "viteBuild": "passed; large chunk size warning",
+  "productionApproved": false
+}

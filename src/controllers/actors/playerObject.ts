@@ -12,6 +12,7 @@ import { PlayerAction } from '@versions/shared/objects/enum';
 import { disposeLoadedModel, loadGLTF } from '../assets/modelLoader';
 import { devQuery } from '../../core/devSeams';
 import { loadBodyOverride, resolveBodyOverride, resolveEquipmentOverride } from './visualOverrides';
+import { resolveCharacterVisualOverride } from './itemVisualOverrides';
 import { Ecs } from '../../ecs/current';
 import {
   BACK_BONE,
@@ -552,9 +553,9 @@ export class PlayerObject extends ModelObject {
     this.PartsPending++;
     try {
       const path = dir + modelPath;
-      const override = part === this.Armor
+      const override = resolveCharacterVisualOverride(path) ?? (part === this.Armor
         ? resolveEquipmentOverride(devQuery('visualProfile'), devQuery('visualEquipment'), this.playerClass, path, devQuery('visualBody'))
-        : null;
+        : null);
       const load = (file: string) => loadGLTF(file, Ecs.world!);
       const gltf = await load(override ?? path).catch(error => {
         if (!override) throw error;
